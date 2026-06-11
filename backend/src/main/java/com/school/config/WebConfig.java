@@ -1,22 +1,19 @@
 package com.school.config;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
 
 @Configuration
-public class WebConfig implements WebMvcConfigurer {
+public class WebConfig {
 
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    @PostConstruct
+    public void initUploadDir() {
         String uploadPath = "/app/uploads/";
         File uploadDir = new File(uploadPath);
         if (!uploadDir.exists()) {
             uploadDir.mkdirs();
         }
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadPath);
     }
 }

@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8357/api'; // Use local mapping for browser access
+const API_BASE = '/api';
 
 const api = {
     baseUrl: API_BASE,

@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/experiment")
-@CrossOrigin
 public class ExperimentController {
     @Autowired private ExperimentService experimentService;
 

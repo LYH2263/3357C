@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/teacher")
-@CrossOrigin
 public class TeacherController {
     @Autowired private TeacherService teacherService;
 

@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/interaction")
-@CrossOrigin
 public class InteractionController {
     @Autowired private InteractionService interactionService;
 

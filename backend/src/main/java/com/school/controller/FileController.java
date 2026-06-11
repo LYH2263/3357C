@@ -11,7 +11,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/file")
-@CrossOrigin
 public class FileController {
 
     private final String uploadPath = "/app/uploads/";
