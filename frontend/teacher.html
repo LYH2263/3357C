@@ -88,6 +88,7 @@
                     <tbody id="tableBody"></tbody>
                 </table>
             </div>
+            <div id="tablePagination" class="d-flex justify-content-center mt-3"></div>
         </div>
     </div>
 
@@ -135,6 +136,9 @@
 
         let currentPage = 'user';
         let currentData = [];
+        let currentPageNum = 1;
+        let pageSize = 10;
+        let totalPages = 1;
         let classesList = [];
 
         const schemas = {
@@ -221,11 +225,11 @@
 
         async function loadManagePage(page) {
             currentPage = page;
+            currentPageNum = 1;
             const schema = schemas[page];
             document.getElementById('pageTitle').innerText = schema.title;
             document.getElementById('actionBtnArea').style.display = schema.hideAdd ? 'none' : 'block';
 
-            // Highlight nav
             document.querySelectorAll('.nav-link').forEach(l => {
                 l.classList.remove('active');
                 if (l.innerText.includes(schema.title.substring(0, 2))) l.classList.add('active');
@@ -243,13 +247,40 @@
             classesList = await api.request('/classes/list');
         }
 
+        function renderPagination() {
+            const container = document.getElementById('tablePagination');
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            let html = '<nav><ul class="pagination pagination-sm mb-0">';
+            html += `<li class="page-item ${currentPageNum === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPageNum - 1})">上一页</a></li>`;
+            const startPage = Math.max(1, currentPageNum - 2);
+            const endPage = Math.min(totalPages, currentPageNum + 2);
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<li class="page-item ${i === currentPageNum ? 'active' : ''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${i})">${i}</a></li>`;
+            }
+            html += `<li class="page-item ${currentPageNum === totalPages ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPageNum + 1})">下一页</a></li>`;
+            html += '</ul></nav>';
+            container.innerHTML = html;
+        }
+
+        function goToPage(pageNum) {
+            if (pageNum < 1 || pageNum > totalPages) return;
+            currentPageNum = pageNum;
+            refreshTable();
+        }
+
         async function refreshTable() {
             const schema = schemas[currentPage];
             const body = document.getElementById('tableBody');
             body.innerHTML = '<tr><td colspan="10" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
 
             try {
-                currentData = await api.request(`${schema.endpoint}/list`);
+                const data = await api.request(`${schema.endpoint}/page?pageNum=${currentPageNum}&pageSize=${pageSize}`);
+                currentData = data.records || [];
+                totalPages = data.pages || 1;
+
                 body.innerHTML = currentData.map((item, idx) => {
                     let rows = '';
                     if (currentPage === 'user') {
@@ -278,6 +309,12 @@
                         <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete(${idx})">删除</button>
                     </td></tr>`;
                 }).join('');
+
+                if (currentData.length === 0) {
+                    body.innerHTML = '<tr><td colspan="10" class="text-center py-5 text-muted">暂无数据</td></tr>';
+                }
+
+                renderPagination();
             } catch (err) { }
         }
 
@@ -354,7 +391,6 @@
                 }
             }
 
-            // Special interaction logic
             if (currentPage === 'interaction' && editingIdx !== -1) {
                 item.replname = session.user.tname;
                 try {

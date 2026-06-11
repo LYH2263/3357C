@@ -1,5 +1,7 @@
 package com.school.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.school.entity.Interaction;
 import com.school.service.InteractionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +15,30 @@ import java.util.List;
 public class InteractionController {
     @Autowired private InteractionService interactionService;
 
-    @GetMapping("/list") public List<Interaction> list() { return interactionService.list(); }
+    @GetMapping("/list")
+    public List<Interaction> list() {
+        return interactionService.list();
+    }
+
+    @GetMapping("/page")
+    public Page<Interaction> page(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String status) {
+        LambdaQueryWrapper<Interaction> wrapper = new LambdaQueryWrapper<>();
+        if (name != null && !name.isEmpty()) {
+            wrapper.eq(Interaction::getName, name);
+        }
+        if ("replied".equals(status)) {
+            wrapper.isNotNull(Interaction::getComrepl);
+        } else if ("unreplied".equals(status)) {
+            wrapper.isNull(Interaction::getComrepl);
+        }
+        wrapper.orderByDesc(Interaction::getAsktime);
+        return interactionService.page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
     @PostMapping("/ask") public boolean ask(@RequestBody Interaction interaction) {
         interaction.setAsktime(LocalDateTime.now());
         return interactionService.save(interaction);

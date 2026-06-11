@@ -12,6 +12,9 @@
             color: var(--primary-color) !important;
             border-bottom: 2px solid var(--primary-color);
         }
+        .pagination-sm {
+            margin-top: 1rem;
+        }
     </style>
 </head>
 
@@ -80,6 +83,7 @@
                 <div class="row" id="course-intro-list">
                     <!-- JS loaded -->
                 </div>
+                <div id="course-intro-pagination" class="d-flex justify-content-center pagination-sm"></div>
             </div>
         </div>
 
@@ -99,6 +103,7 @@
                         <tbody id="teaching-list"></tbody>
                     </table>
                 </div>
+                <div id="teaching-pagination" class="d-flex justify-content-center pagination-sm"></div>
             </div>
         </div>
 
@@ -118,6 +123,7 @@
                         <tbody id="experiment-list"></tbody>
                     </table>
                 </div>
+                <div id="experiment-pagination" class="d-flex justify-content-center pagination-sm"></div>
             </div>
         </div>
 
@@ -139,10 +145,18 @@
                 </div>
                 <div class="col-md-8">
                     <div class="card p-4">
-                        <h5 class="fw-bold mb-3">我的提问与解答</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0">我的提问与解答</h5>
+                            <select id="interactionStatusFilter" class="form-select form-select-sm" style="width: auto;" onchange="loadInteractions(1)">
+                                <option value="">全部状态</option>
+                                <option value="unreplied">待回复</option>
+                                <option value="replied">已回复</option>
+                            </select>
+                        </div>
                         <div id="interaction-list" class="list-group gap-3">
                             <!-- JS loaded -->
                         </div>
+                        <div id="interaction-pagination" class="d-flex justify-content-center mt-3 pagination-sm"></div>
                     </div>
                 </div>
             </div>
@@ -155,7 +169,6 @@
         const session = api.getSession();
         if (!session.user || session.role !== 'student') location.href = 'index.html';
 
-        // Init User Info
         document.getElementById('userInfo').innerText = `欢迎，${session.user.username}`;
         document.getElementById('userName').innerText = session.user.username;
         document.getElementById('userNo').innerText = '学号: ' + session.user.userno;
@@ -170,18 +183,37 @@
             event.target.classList.add('active');
 
             if (id === 'home') loadNews();
-            if (id === 'course-intro') loadCourseIntros();
-            if (id === 'teaching') loadTeaching();
-            if (id === 'experiment') loadExperiments();
-            if (id === 'interact') loadInteractions();
+            if (id === 'course-intro') loadCourseIntros(1);
+            if (id === 'teaching') loadTeaching(1);
+            if (id === 'experiment') loadExperiments(1);
+            if (id === 'interact') loadInteractions(1);
+        }
+
+        function renderPagination(containerId, currentPage, totalPages, onPageChange) {
+            const container = document.getElementById(containerId);
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            let html = '<nav><ul class="pagination pagination-sm mb-0">';
+            html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="${onPageChange}(${currentPage - 1})">上一页</a></li>`;
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="javascript:void(0)" onclick="${onPageChange}(${i})">${i}</a></li>`;
+            }
+            html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="${onPageChange}(${currentPage + 1})">下一页</a></li>`;
+            html += '</ul></nav>';
+            container.innerHTML = html;
         }
 
         async function loadNews() {
             const list = document.getElementById('news-list');
             list.innerHTML = '<div class="skeleton" style="height: 100px;"></div>';
             try {
-                const data = await api.request('/news/list');
-                list.innerHTML = data.slice(0, 10).map(n => `
+                const data = await api.request('/news/page?pageNum=1&pageSize=10');
+                const records = data.records || [];
+                list.innerHTML = records.map(n => `
                     <div class="list-group-item border-0 px-0 py-3">
                         <div class="d-flex justify-content-between">
                             <h6 class="mb-1 fw-bold">${n.newstitle}</h6>
@@ -193,21 +225,25 @@
             } catch (err) { }
         }
 
-        async function loadCourseIntros() {
+        let currentCoursePage = 1;
+        let currentCourseKeyword = '';
+
+        async function loadCourseIntros(pageNum = 1) {
+            currentCoursePage = pageNum;
             const list = document.getElementById('course-intro-list');
             try {
-                const data = await api.request('/test/list');
-                renderCourseIntros(data);
+                let url = `/test/page?pageNum=${pageNum}&pageSize=6`;
+                if (currentCourseKeyword) url += `&keyword=${encodeURIComponent(currentCourseKeyword)}`;
+                const data = await api.request(url);
+                const records = data.records || [];
+                renderCourseIntros(records);
+                renderPagination('course-intro-pagination', pageNum, data.pages || 1, 'loadCourseIntros');
             } catch (err) { }
         }
 
         async function searchCourseIntro() {
-            const keyword = document.getElementById('courseSearchInput').value;
-            const list = document.getElementById('course-intro-list');
-            try {
-                const data = await api.request(`/test/search?keyword=${keyword}`);
-                renderCourseIntros(data);
-            } catch (err) { }
+            currentCourseKeyword = document.getElementById('courseSearchInput').value;
+            loadCourseIntros(1);
         }
 
         function renderCourseIntros(data) {
@@ -222,11 +258,15 @@
             `).join('');
         }
 
-        async function loadTeaching() {
+        let currentTeachingPage = 1;
+
+        async function loadTeaching(pageNum = 1) {
+            currentTeachingPage = pageNum;
             const list = document.getElementById('teaching-list');
             try {
-                const data = await api.request('/course/list');
-                list.innerHTML = data.map(c => `
+                const data = await api.request(`/course/page?pageNum=${pageNum}&pageSize=10`);
+                const records = data.records || [];
+                list.innerHTML = records.map(c => `
                     <tr>
                         <td>${c.ctitle}</td>
                         <td class="small text-muted">${c.ccontent}</td>
@@ -235,14 +275,19 @@
                         </td>
                     </tr>
                 `).join('');
+                renderPagination('teaching-pagination', pageNum, data.pages || 1, 'loadTeaching');
             } catch (err) { }
         }
 
-        async function loadExperiments() {
+        let currentExperimentPage = 1;
+
+        async function loadExperiments(pageNum = 1) {
+            currentExperimentPage = pageNum;
             const list = document.getElementById('experiment-list');
             try {
-                const data = await api.request('/experiment/list');
-                list.innerHTML = data.map(e => `
+                const data = await api.request(`/experiment/page?pageNum=${pageNum}&pageSize=10`);
+                const records = data.records || [];
+                list.innerHTML = records.map(e => `
                     <tr>
                         <td>${e.etitle}</td>
                         <td class="small text-muted">${e.econtent}</td>
@@ -251,15 +296,22 @@
                         </td>
                     </tr>
                 `).join('');
+                renderPagination('experiment-pagination', pageNum, data.pages || 1, 'loadExperiments');
             } catch (err) { }
         }
 
-        async function loadInteractions() {
+        let currentInteractionPage = 1;
+
+        async function loadInteractions(pageNum = 1) {
+            currentInteractionPage = pageNum;
             const list = document.getElementById('interaction-list');
+            const status = document.getElementById('interactionStatusFilter').value;
             try {
-                const data = await api.request('/interaction/list');
-                const myQuestions = data.filter(i => i.name === session.user.username);
-                list.innerHTML = myQuestions.map(i => `
+                let url = `/interaction/page?pageNum=${pageNum}&pageSize=5&name=${encodeURIComponent(session.user.username)}`;
+                if (status) url += `&status=${status}`;
+                const data = await api.request(url);
+                const records = data.records || [];
+                list.innerHTML = records.map(i => `
                     <div class="list-group-item border shadow-sm">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="badge bg-primary">我提问:</span>
@@ -277,6 +329,10 @@
                         ` : '<div class="text-muted small italic">等待老师回答...</div>'}
                     </div>
                 `).join('');
+                if (records.length === 0) {
+                    list.innerHTML = '<div class="text-center text-muted py-4">暂无提问记录</div>';
+                }
+                renderPagination('interaction-pagination', pageNum, data.pages || 1, 'loadInteractions');
             } catch (err) { }
         }
 
@@ -293,11 +349,11 @@
                 });
                 api.showToast('提问成功', 'success');
                 document.getElementById('askContent').value = '';
-                loadInteractions();
+                loadInteractions(1);
             } catch (err) { }
         });
 
-        loadNews(); // Init
+        loadNews();
     </script>
 </body>
 
